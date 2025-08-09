@@ -1,7 +1,10 @@
 services:
   api:
-    build: .
-    command: ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+    build:
+      context: ..
+      dockerfile: Hinds-Light-Backend/Dockerfile
+    working_dir: /app/Hinds-Light-Backend
+    command: ["sh", "-c", "yarn dlx prisma migrate deploy && node dist/index.js"]
     environment:
       NODE_ENV: production
       PORT: "4000"
@@ -18,7 +21,10 @@ services:
       redis:
         condition: service_started
   worker-ingest:
-    build: .
+    build:
+      context: ..
+      dockerfile: Hinds-Light-Backend/Dockerfile
+    working_dir: /app/Hinds-Light-Backend
     command: ["node", "dist/workers/ingestWorker.js"]
     environment:
       NODE_ENV: production
@@ -31,7 +37,10 @@ services:
       redis:
         condition: service_started
   worker-translation:
-    build: .
+    build:
+      context: ..
+      dockerfile: Hinds-Light-Backend/Dockerfile
+    working_dir: /app/Hinds-Light-Backend
     command: ["node", "dist/workers/translationWorker.js"]
     environment:
       NODE_ENV: production
