@@ -5,5 +5,8 @@
   "workspaces": [
     "Hinds-Light-Frontend",
     "Hinds-Light-Backend"
-  ]
+  ],
+  "devDependencies": {
+    "@types/tough-cookie": "^4.0.5"
+  }
 }

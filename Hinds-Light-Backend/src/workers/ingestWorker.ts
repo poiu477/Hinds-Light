@@ -4,6 +4,7 @@ import { bullMqConnection } from '../lib/redis.js';
 import { prisma } from '../lib/prisma.js';
 import Parser from 'rss-parser';
 import { enqueueTranslation } from '../queues/translationQueue.js';
+import { fetchFeedXml, politeDelay, warmUpOrigin, sanitizeXml } from '../lib/fetchFeed.js';
 // Avoid importing enums that may not be exported by Prisma types in this setup
 
 type JobData = { sourceId?: string };
@@ -17,8 +18,8 @@ ensureRepeatable().catch(console.error);
 
 const parser = new Parser({
   headers: {
-    // Use a browser-like UA to avoid basic bot blocking
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 HindsLight/0.1',
+    // Identify as Google FeedFetcher per request
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0',
     Accept: 'application/rss+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.7',
     'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7'
   }
@@ -48,7 +49,10 @@ const worker = new Worker<JobData>(
 async function ingestRssSource(sourceId: string, feedUrl: string) {
   let feed: Parser.Output<any>;
   try {
-    feed = await parser.parseURL(feedUrl);
+    await warmUpOrigin(feedUrl);
+    const xmlRaw = await fetchFeedXml(feedUrl);
+    const xml = sanitizeXml(xmlRaw);
+    feed = (await parser.parseString(xml)) as Parser.Output<any>;
   } catch (err: any) {
     console.error(`[ingest] Failed to fetch/parse RSS for ${feedUrl}: ${err?.message || err}`);
     return;
@@ -113,6 +117,8 @@ async function ingestRssSource(sourceId: string, feedUrl: string) {
       console.error('[ingest] Error saving content item', e?.message || e);
     }
   }
+  // Be polite to origins between sources
+  await politeDelay(500);
 }
 
 const events = new QueueEvents('ingest', { connection: bullMqConnection });

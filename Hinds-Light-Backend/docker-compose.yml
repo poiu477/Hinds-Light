@@ -30,6 +30,7 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hinds_light?schema=public
       REDIS_URL: redis://redis:6379
+      FEED_USER_AGENT: ${FEED_USER_AGENT}
     restart: unless-stopped
     depends_on:
       postgres:

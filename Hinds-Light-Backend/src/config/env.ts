@@ -8,7 +8,9 @@ const envSchema = z.object({
   REDIS_URL: z.string().url(),
   TRANSLATION_PROVIDER: z.enum(['dummy', 'google']).default('dummy'),
   GOOGLE_TRANSLATE_API_KEY: z.string().optional(),
-  GOOGLE_PROJECT_ID: z.string().optional()
+  GOOGLE_PROJECT_ID: z.string().optional(),
+  // Optional override for feed fetching UA
+  FEED_USER_AGENT: z.string().optional()
 });
 
 export const env = envSchema.parse(process.env);
