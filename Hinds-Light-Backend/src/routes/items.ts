@@ -19,22 +19,56 @@ export async function registerItemsRoutes(app: FastifyInstance) {
     const take = parsed.limit;
     const cursor = parsed.before ? { id: parsed.before } : undefined;
 
-    const items = await prisma.contentItem.findMany({
+    type ItemRow = {
+      id: string;
+      sourceId: string;
+      type: string;
+      title: string | null;
+      url: string | null;
+      publishedAt: Date | null;
+      originalLanguage: string;
+      originalText: string;
+      translatedLanguage: string | null;
+      translatedText: string | null;
+      translationStatus: string;
+    };
+
+    const items: ItemRow[] = await prisma.contentItem.findMany({
       where,
       orderBy: { publishedAt: 'desc' },
       take,
-      ...(cursor ? { skip: 1, cursor } : {})
+      ...(cursor ? { skip: 1, cursor } : {}),
+      select: {
+        id: true,
+        sourceId: true,
+        type: true,
+        title: true,
+        url: true,
+        publishedAt: true,
+        originalLanguage: true,
+        originalText: true,
+        translatedLanguage: true,
+        translatedText: true,
+        translationStatus: true
+      }
     });
 
-    const mapped = items.map((i) => ({
+    const mapped = items.map((i: ItemRow) => ({
       id: i.id,
       sourceId: i.sourceId,
       type: i.type,
       title: i.title,
       url: i.url,
       publishedAt: i.publishedAt,
+      // Keep existing shape
       language: parsed.lang,
-      text: parsed.lang === 'en' ? i.translatedText ?? i.originalText : i.originalText
+      text: parsed.lang === 'en' ? i.translatedText ?? i.originalText : i.originalText,
+      // Provide both fields explicitly for clients that render both
+      originalLanguage: i.originalLanguage,
+      originalText: i.originalText,
+      translatedLanguage: i.translatedLanguage ?? null,
+      translatedText: i.translatedText ?? null,
+      translationStatus: i.translationStatus
     }));
 
     return ok({

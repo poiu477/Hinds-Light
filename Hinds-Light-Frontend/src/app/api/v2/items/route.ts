@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 export async function GET(req: NextRequest) {
   const backendBaseUrl = process.env.API_URL ?? "http://localhost:4000";
   const url = new URL(req.url);
-  const target = `${backendBaseUrl}/api/v2/items${url.search}`;
+  const target = `${backendBaseUrl}/api/v1/items${url.search}`;
 
   try {
     const res = await fetch(target, {

@@ -37,15 +37,25 @@ async function fetchArticles(): Promise<Article[]> {
     }
     const payload = (await res.json()) as unknown;
 
-    const list: unknown[] = Array.isArray(payload)
-      ? payload
-      : typeof payload === "object" && payload !== null
-      ? ("data" in (payload as Record<string, unknown>)
-          ? ((payload as Record<string, unknown>).data as unknown[])
-          : "items" in (payload as Record<string, unknown>)
-          ? ((payload as Record<string, unknown>).items as unknown[])
-          : [])
-      : [];
+    const extractItems = (value: unknown): unknown[] => {
+      if (Array.isArray(value)) return value;
+      if (value && typeof value === "object") {
+        const obj = value as Record<string, unknown>;
+        // APIResponse shape: { success, data }
+        if ("data" in obj) {
+          const data = obj["data"];
+          if (Array.isArray(data)) return data;
+          if (data && typeof data === "object" && Array.isArray((data as Record<string, unknown>)["items"])) {
+            return (data as Record<string, unknown>)["items"] as unknown[];
+          }
+        }
+        // Fallback to top-level items
+        if (Array.isArray(obj["items"])) return obj["items"] as unknown[];
+      }
+      return [];
+    };
+
+    const list: unknown[] = extractItems(payload);
 
     const toStr = (obj: Record<string, unknown>, keys: string[]): string => {
       for (const k of keys) {
