@@ -2,8 +2,8 @@
 
 ARG NODE_VERSION=22-alpine
 
-# --- Builder: install deps (focused) and build Next.js ---
-FROM node:${NODE_VERSION} AS builder
+# --- Base: install deps ---
+FROM node:${NODE_VERSION} AS base
 WORKDIR /app
 
 # Enable Yarn via Corepack
@@ -12,20 +12,32 @@ RUN corepack enable
 # Copy Yarn workspace root files
 COPY package.json yarn.lock .yarnrc.yml .yarn/ ./
 
-# Copy only this workspace manifest
+# Copy only frontend workspace manifest
 COPY Hinds-Light-Frontend/package.json Hinds-Light-Frontend/package.json
 
-# Install only this workspace (Yarn 4 includes workspace-tools by default)
+# Install only frontend workspace dependencies (including dev dependencies)
 RUN yarn workspaces focus hinds-light-frontend
 
-# Copy source into its workspace path
+# Copy frontend source
 COPY Hinds-Light-Frontend ./Hinds-Light-Frontend
 
-# Build the app (standalone output)
+# --- Development stage ---
+FROM base AS development
+ENV NODE_ENV=development
+WORKDIR /app/Hinds-Light-Frontend
+
+# Expose Next.js dev server port
+EXPOSE 3000
+
+# Run development server with Turbopack
+CMD ["yarn", "dev"]
+
+# --- Builder: build for production ---
+FROM base AS builder
 RUN yarn workspace hinds-light-frontend build
 
-# --- Runner: minimal image with standalone server ---
-FROM node:${NODE_VERSION} AS runner
+# --- Production runner ---
+FROM node:${NODE_VERSION} AS production
 ENV NODE_ENV=production
 WORKDIR /app
 

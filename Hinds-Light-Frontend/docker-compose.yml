@@ -3,6 +3,7 @@ services:
     build:
       context: ..
       dockerfile: Hinds-Light-Frontend/Dockerfile
+      target: development
     ports:
       - "3000:3000"
     environment:
@@ -10,8 +11,15 @@ services:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://host.docker.internal:4000}
       # Internal server-side proxy base URL
       API_URL: ${API_URL:-http://host.docker.internal:4000}
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: "3000"
+    volumes:
+      # Mount source code for hot reloading
+      - ../Hinds-Light-Frontend/src:/app/Hinds-Light-Frontend/src
+      - ../Hinds-Light-Frontend/public:/app/Hinds-Light-Frontend/public
+      # Exclude node_modules to avoid conflicts
+      - /app/node_modules
+      - /app/Hinds-Light-Frontend/node_modules
     restart: unless-stopped
 
 

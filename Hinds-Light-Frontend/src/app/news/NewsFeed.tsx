@@ -2,6 +2,10 @@
 
 import React, { useEffect, useMemo, useRef } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import Header from "@/components/Header";
+import ArticleCard from "@/components/ArticleCard";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import ErrorState from "@/components/ErrorState";
 
 type Article = {
   id: string;
@@ -158,68 +162,83 @@ export default function NewsFeed() {
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isLoading) return <div className="text-sm text-gray-500">Loading…</div>;
-  if (isError)
+  if (isLoading) {
     return (
-      <div className="text-sm text-red-600">
-        {(error as Error)?.message ?? "Error loading articles"}
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <Header />
+        <div className="container mx-auto px-6 py-8">
+          <LoadingSpinner size="lg" text="Loading latest news..." />
+        </div>
       </div>
     );
+  }
+
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+        <Header onRefresh={() => refetch()} isRefreshing={isFetching} />
+        <div className="container mx-auto px-6 py-8">
+          <ErrorState 
+            message={(error as Error)?.message ?? "Error loading articles"}
+            onRetry={() => refetch()}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Translated Hebrew News</h2>
-        <button
-          className="text-sm px-3 py-1 rounded border border-gray-300 hover:bg-gray-50"
-          onClick={() => refetch()}
-          disabled={isFetching}
-        >
-          {isFetching ? "Refreshing…" : "Refresh"}
-        </button>
-      </div>
-      <ul className="space-y-4">
-        {flatItems.map((a) => (
-          <li key={a.id} className="p-4 rounded border border-gray-200 bg-white">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs text-gray-500">
-                {a.source} · {a.publishedAt ? new Date(a.publishedAt).toLocaleString() : ""}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <Header onRefresh={() => refetch()} isRefreshing={isFetching} />
+      
+      <main className="container mx-auto px-6 py-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Articles Grid */}
+          {flatItems.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="mx-auto h-12 w-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                </svg>
               </div>
-              {a.url ? (
-                <a
-                  href={a.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs text-blue-600 hover:underline"
-                >
-                  Source
-                </a>
-              ) : null}
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No articles found</h3>
+              <p className="text-gray-600 dark:text-gray-400">Check back later for new content.</p>
             </div>
-            <div className="mt-2 text-xs text-gray-500">Original (HE)</div>
-            <p className="mt-1 text-sm leading-6 whitespace-pre-wrap">{a.originalText}</p>
-            <div className="mt-3 text-xs text-gray-500">Translation (EN)</div>
-            <p className="mt-1 text-base leading-7 font-medium whitespace-pre-wrap">
-              {a.translatedText}
-            </p>
-          </li>
-        ))}
-      </ul>
-      <div ref={sentinelRef} className="h-10" />
-      <div className="mt-4 flex items-center justify-center">
-        {isFetchingNextPage ? (
-          <span className="text-sm text-gray-500">Loading more…</span>
-        ) : hasNextPage ? (
-          <button
-            className="text-sm px-3 py-1 rounded border border-gray-300 hover:bg-gray-50"
-            onClick={() => fetchNextPage()}
-          >
-            Load more
-          </button>
-        ) : (
-          <span className="text-xs text-gray-400">No more items</span>
-        )}
-      </div>
+          ) : (
+            <div className="grid gap-6">
+              {flatItems.map((article) => (
+                <ArticleCard key={article.id} article={article} />
+              ))}
+            </div>
+          )}
+
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} className="h-10" />
+
+          {/* Load more section */}
+          <div className="mt-8 flex items-center justify-center">
+            {isFetchingNextPage ? (
+              <LoadingSpinner text="Loading more articles..." />
+            ) : hasNextPage ? (
+              <button
+                onClick={() => fetchNextPage()}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700 dark:focus:ring-offset-gray-900 transition-colors"
+              >
+                Load More Articles
+              </button>
+            ) : flatItems.length > 0 ? (
+              <div className="text-center">
+                <div className="inline-flex items-center px-4 py-2 text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  You&apos;re all caught up!
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

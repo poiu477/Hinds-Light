@@ -1255,15 +1255,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^20":
-  version: 20.19.10
-  resolution: "@types/node@npm:20.19.10"
-  dependencies:
-    undici-types: "npm:~6.21.0"
-  checksum: 10c0/dac81561f6d7cbd37c876c4023846095a71d8b62df52c8b6b32de67f6ca6aaf2ffd0c1e02ede6d2c8af41e934ce2005f67b8b6348b79dd355c05f3192aa7b59a
-  languageName: node
-  linkType: hard
-
 "@types/node@npm:^24.2.1":
   version: 24.2.1
   resolution: "@types/node@npm:24.2.1"
@@ -1280,7 +1271,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react-dom@npm:^19":
+"@types/react-dom@npm:^19.1.7":
   version: 19.1.7
   resolution: "@types/react-dom@npm:19.1.7"
   peerDependencies:
@@ -1289,7 +1280,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react@npm:^19":
+"@types/react@npm:^19.1.9":
   version: 19.1.9
   resolution: "@types/react@npm:19.1.9"
   dependencies:
@@ -3575,9 +3566,9 @@ __metadata:
     "@tailwindcss/postcss": "npm:^4"
     "@tanstack/react-query": "npm:^5.84.2"
     "@tanstack/react-query-devtools": "npm:^5.84.2"
-    "@types/node": "npm:^20"
-    "@types/react": "npm:^19"
-    "@types/react-dom": "npm:^19"
+    "@types/node": "npm:^24.2.1"
+    "@types/react": "npm:^19.1.9"
+    "@types/react-dom": "npm:^19.1.7"
     eslint: "npm:^9"
     eslint-config-next: "npm:15.4.6"
     next: "npm:^15.4.6"
@@ -6353,13 +6344,6 @@ __metadata:
     has-symbols: "npm:^1.1.0"
     which-boxed-primitive: "npm:^1.1.1"
   checksum: 10c0/7dbd35ab02b0e05fe07136c72cb9355091242455473ec15057c11430129bab38b7b3624019b8778d02a881c13de44d63cd02d122ee782fb519e1de7775b5b982
-  languageName: node
-  linkType: hard
-
-"undici-types@npm:~6.21.0":
-  version: 6.21.0
-  resolution: "undici-types@npm:6.21.0"
-  checksum: 10c0/c01ed51829b10aa72fc3ce64b747f8e74ae9b60eafa19a7b46ef624403508a54c526ffab06a14a26b3120d055e1104d7abe7c9017e83ced038ea5cf52f8d5e04
   languageName: node
   linkType: hard
 
