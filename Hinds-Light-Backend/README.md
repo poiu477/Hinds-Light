@@ -1,4 +1,4 @@
-# Hind's Light Backend
+# Hinds-Light Backend
 
 Quick start:
 

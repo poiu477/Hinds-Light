@@ -1,0 +1,9 @@
+{
+  "name": "Hinds-Light",
+  "private": true,
+  "packageManager": "yarn@4.9.2",
+  "workspaces": [
+    "Hinds-Light-Frontend",
+    "Hinds-Light-Backend"
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "name": "Hinds-Light-Frontend",
+  "name": "hinds-light-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.84.2",
     "@tanstack/react-query-devtools": "^5.84.2",
-    "next": "15.4.6",
+    "next": "^15.4.6",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "zustand": "^5.0.7"

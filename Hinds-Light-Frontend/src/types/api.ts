@@ -1,4 +1,4 @@
-export interface APIResponse<T = any> {
+export interface APIResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -211,7 +211,7 @@ export type CollectionLogsResponse = APIResponse<
     level: "info" | "warn" | "error";
     message: string;
     source?: string;
-    metadata?: any;
+    metadata?: unknown;
   }>
 >;
 

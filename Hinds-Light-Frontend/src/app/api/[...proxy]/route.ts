@@ -1,25 +1,29 @@
-import { NextRequest } from "next/server";
+// Use the standard Request type for route handlers; avoid framework-specific types
 
 // Generic pass-through proxy: forwards /api/* to backend API_URL
 // Note: define specific routes above this file to override behavior when needed
 
-export async function GET(req: NextRequest, { params }: { params: { proxy: string[] } }) {
+export async function GET(req: Request, context: unknown) {
+  const params = extractParams(context);
   return handleProxy(req, params);
 }
 
-export async function POST(req: NextRequest, { params }: { params: { proxy: string[] } }) {
+export async function POST(req: Request, context: unknown) {
+  const params = extractParams(context);
   return handleProxy(req, params, "POST");
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { proxy: string[] } }) {
+export async function PUT(req: Request, context: unknown) {
+  const params = extractParams(context);
   return handleProxy(req, params, "PUT");
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { proxy: string[] } }) {
+export async function DELETE(req: Request, context: unknown) {
+  const params = extractParams(context);
   return handleProxy(req, params, "DELETE");
 }
 
-async function handleProxy(req: NextRequest, { proxy }: { proxy: string[] }, method?: string) {
+async function handleProxy(req: Request, { proxy }: { proxy: string[] }, method?: string) {
   const backendBaseUrl = process.env.API_URL ?? "http://localhost:4000";
   const upstreamPath = proxy.join("/");
   const url = new URL(req.url);
@@ -49,6 +53,23 @@ async function handleProxy(req: NextRequest, { proxy }: { proxy: string[] }, met
       { status: 502, headers: { "content-type": "application/json" } }
     );
   }
+}
+
+function extractParams(context: unknown): { proxy: string[] } {
+  if (
+    context &&
+    typeof context === 'object' &&
+    'params' in (context as Record<string, unknown>) &&
+    (context as { params: unknown }).params &&
+    typeof (context as { params: unknown }).params === 'object' &&
+    'proxy' in ((context as { params: Record<string, unknown> }).params as Record<string, unknown>)
+  ) {
+    const p = (context as { params: Record<string, unknown> }).params.proxy;
+    if (Array.isArray(p) && p.every((s) => typeof s === 'string')) {
+      return { proxy: p };
+    }
+  }
+  return { proxy: [] };
 }
 
 function filterHeaders(incoming: Headers, backendStaticToken?: string): HeadersInit {

@@ -21,8 +21,15 @@ async function fetchArticles(): Promise<Article[]> {
     if (!res.ok) {
       let message = `Failed to load items (status ${res.status})`;
       try {
-        const data = await res.json();
-        if ((data as any)?.error) message = (data as any).error;
+        const data = (await res.json()) as unknown;
+        if (
+          data &&
+          typeof data === 'object' &&
+          'error' in (data as Record<string, unknown>) &&
+          typeof (data as Record<string, unknown>).error === 'string'
+        ) {
+          message = (data as Record<string, string>).error;
+        }
       } catch {
         // ignore
       }

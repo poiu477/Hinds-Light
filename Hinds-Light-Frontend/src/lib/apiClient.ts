@@ -24,7 +24,7 @@ export class APIClient {
     this.tokenProvider = provider;
   }
 
-  async get<T>(endpoint: string, params?: Record<string, unknown>): Promise<T> {
+  async get<T>(endpoint: string, params?: object): Promise<T> {
     const url = this.composeUrl(endpoint, params);
     const response = await fetch(url, { headers: this.getHeaders() });
     return this.handleResponse<T>(response);
@@ -56,13 +56,22 @@ export class APIClient {
     return this.handleResponse<T>(response);
   }
 
-  private composeUrl(endpoint: string, params?: Record<string, unknown>): string {
+  private composeUrl(endpoint: string, params?: object): string {
     const base = this.baseURL.endsWith("/") ? this.baseURL.slice(0, -1) : this.baseURL;
     const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
     const url = new URL(`${base}${path}`, typeof window === "undefined" ? "http://localhost" : undefined);
     if (params) {
-      for (const [key, value] of Object.entries(params)) {
-        if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
+      for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
+        if (value === undefined || value === null) continue;
+        if (Array.isArray(value)) {
+          for (const v of value) url.searchParams.append(key, String(v));
+          continue;
+        }
+        if (typeof value === 'object') {
+          url.searchParams.set(key, JSON.stringify(value));
+          continue;
+        }
+        url.searchParams.set(key, String(value));
       }
     }
     return url.toString().replace(/^http:\/\/localhost\//, "/");
@@ -79,13 +88,32 @@ export class APIClient {
   }
 
   private async handleResponse<T>(response: Response): Promise<T> {
-    const data = (await response.json()) as APIResponse<T> | T;
+    const parsed: unknown = await response.json();
     if (!response.ok) {
-      const message = (data as APIResponse)?.error || (data as any)?.message || "Request failed";
+      const message = this.extractErrorMessage(parsed) ?? "Request failed";
       throw new APIError(message, response.status);
     }
     // Support both wrapped and unwrapped responses
-    return (data as APIResponse<T>)?.data ?? (data as T);
+    if (this.isApiResponse(parsed)) {
+      return (parsed.data as T) ?? (parsed as T);
+    }
+    return parsed as T;
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+  }
+
+  private isApiResponse(value: unknown): value is APIResponse<unknown> {
+    return this.isRecord(value) && ("data" in value || "error" in value || "success" in value);
+  }
+
+  private extractErrorMessage(value: unknown): string | null {
+    if (this.isApiResponse(value) && typeof value.error === 'string') return value.error;
+    if (this.isRecord(value) && typeof (value as { message?: unknown }).message === 'string') {
+      return (value as { message: string }).message;
+    }
+    return null;
   }
 }
 
