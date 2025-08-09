@@ -1,0 +1,78 @@
+services:
+  api:
+    build: .
+    command: ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hinds_light?schema=public
+      REDIS_URL: redis://redis:6379
+      TRANSLATION_PROVIDER: ${TRANSLATION_PROVIDER:-dummy}
+      GOOGLE_TRANSLATE_API_KEY: ${GOOGLE_TRANSLATE_API_KEY}
+    ports:
+      - "4000:4000"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+  worker-ingest:
+    build: .
+    command: ["node", "dist/workers/ingestWorker.js"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hinds_light?schema=public
+      REDIS_URL: redis://redis:6379
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+  worker-translation:
+    build: .
+    command: ["node", "dist/workers/translationWorker.js"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hinds_light?schema=public
+      REDIS_URL: redis://redis:6379
+      TRANSLATION_PROVIDER: ${TRANSLATION_PROVIDER:-dummy}
+      GOOGLE_TRANSLATE_API_KEY: ${GOOGLE_TRANSLATE_API_KEY}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: hinds_light
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+volumes:
+  pgdata:
+  redisdata:
+
+
+
+
+
+
