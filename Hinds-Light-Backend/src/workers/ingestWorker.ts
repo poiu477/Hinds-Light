@@ -4,7 +4,7 @@ import { bullMqConnection } from '../lib/redis.js';
 import { prisma } from '../lib/prisma.js';
 import Parser from 'rss-parser';
 import { enqueueTranslation } from '../queues/translationQueue.js';
-import { ContentType } from '@prisma/client';
+// Avoid importing enums that may not be exported by Prisma types in this setup
 
 type JobData = { sourceId?: string };
 
@@ -17,8 +17,10 @@ ensureRepeatable().catch(console.error);
 
 const parser = new Parser({
   headers: {
-    'User-Agent': 'HindsLightBot/0.1 (+https://localhost) Fastify RSS Ingest',
-    Accept: 'application/rss+xml, application/xml;q=0.9, */*;q=0.8'
+    // Use a browser-like UA to avoid basic bot blocking
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 HindsLight/0.1',
+    Accept: 'application/rss+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.7',
+    'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7'
   }
 });
 
@@ -74,7 +76,7 @@ async function ingestRssSource(sourceId: string, feedUrl: string) {
           where: { url },
           create: {
             sourceId,
-            type: ContentType.ARTICLE,
+            type: 'ARTICLE',
             title,
             url,
             originalLanguage: 'he',
@@ -94,7 +96,7 @@ async function ingestRssSource(sourceId: string, feedUrl: string) {
           where: { contentHash },
           create: {
             sourceId,
-            type: ContentType.ARTICLE,
+            type: 'ARTICLE',
             title,
             contentHash,
             originalLanguage: 'he',

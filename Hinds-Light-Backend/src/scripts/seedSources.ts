@@ -5,11 +5,22 @@ import { enqueueIngestSource } from '../queues/ingestQueue.js';
 type RssSource = { name: string; displayName?: string; alignment?: string; url: string; language?: string };
 
 const sources: RssSource[] = [
-  { name: 'ערוץ 7', displayName: 'Arutz Sheva', alignment: 'Religious Zionist / Far-right', url: 'https://www.inn.co.il/Rss.aspx', language: 'he' },
-  { name: 'מקור ראשון', displayName: 'Makor Rishon', alignment: 'Right-wing / Religious Zionist', url: 'https://www.makorrishon.co.il/feed/', language: 'he' },
-  { name: 'בשבע', displayName: "B'Sheva", alignment: 'Religious Zionist', url: 'https://www.inn.co.il/Rss.aspx', language: 'he' },
+  // Working general feeds
   { name: 'סרוגים', displayName: 'Srugim', alignment: 'Religious Zionist', url: 'https://www.srugim.co.il/feed', language: 'he' },
-  { name: 'הקול היהודי', displayName: 'HaKol HaYehudi', alignment: 'Far-right nationalist', url: 'https://www.hakolhayehudi.co.il/rss.xml', language: 'he' }
+  { name: 'ישראל היום', displayName: 'Israel Hayom', alignment: 'Right-wing populist, pro-Likud, nationalist', url: 'https://www.israelhayom.co.il/rss.xml', language: 'he' },
+  { name: 'JDN', displayName: 'JDN News', alignment: 'Haredi', url: 'https://www.jdn.co.il/feed/', language: 'he' },
+
+  // Working security/category-specific feeds
+  { name: 'ערוץ 7 – ביטחון', displayName: 'Arutz Sheva – Security', alignment: 'Religious Zionist / Far-right', url: 'https://www.inn.co.il/Rss.aspx?i=2', language: 'he' },
+  { name: 'מקור ראשון – ביטחון', displayName: 'Makor Rishon – Security', alignment: 'Religious Zionist / Right-wing', url: 'https://www.makorrishon.co.il/category/security/feed/', language: 'he' },
+  { name: 'חדשות JDN – ביטחון', displayName: 'JDN News – Security', alignment: 'Haredi', url: 'https://archive.jdn.co.il/category/security/feed/', language: 'he' }
+  
+  // Removed (404/blocked/no RSS):
+  // - ערוץ 14 – חדשות ביטחוניות (14news.co.il) – feed unreachable
+  // - 0404 – no valid RSS endpoint
+  // - חדשות כיכר השבת – no valid RSS endpoint
+  // - הקול היהודי – feed endpoints return 404/500
+  // - ערוץ 7 (general) and בשבע duplicated inn.co.il feed; keeping only security feed to avoid duplicates
 ];
 
 async function main() {

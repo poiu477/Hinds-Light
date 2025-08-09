@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useEffect, useMemo, useRef } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 
 type Article = {
   id: string;
@@ -13,11 +13,13 @@ type Article = {
   publishedAt?: string;
 };
 
-async function fetchArticles(): Promise<Article[]> {
+type Page = { items: Article[]; nextCursor: string | null };
+
+async function fetchPage(cursor?: string): Promise<Page> {
   try {
-    const res = await fetch(`/api/v2/items?lang=he&translated=true`, {
-      next: { revalidate: 30 },
-    });
+    const params = new URLSearchParams({ lang: "he", limit: "50" });
+    if (cursor) params.set("before", cursor);
+    const res = await fetch(`/api/v2/items?${params.toString()}`);
     if (!res.ok) {
       let message = `Failed to load items (status ${res.status})`;
       try {
@@ -56,6 +58,21 @@ async function fetchArticles(): Promise<Article[]> {
     };
 
     const list: unknown[] = extractItems(payload);
+    const extractNextCursor = (value: unknown): string | null => {
+      if (value && typeof value === "object") {
+        const obj = value as Record<string, unknown>;
+        if ("data" in obj && obj.data && typeof obj.data === "object") {
+          const d = obj.data as Record<string, unknown>;
+          const nc = d["nextCursor"];
+          if (typeof nc === "string" && nc.trim().length > 0) return nc;
+          if (nc === null) return null;
+        }
+        const ncTop = obj["nextCursor"];
+        if (typeof ncTop === "string" && ncTop.trim().length > 0) return ncTop;
+        if (ncTop === null) return null;
+      }
+      return null;
+    };
 
     const toStr = (obj: Record<string, unknown>, keys: string[]): string => {
       for (const k of keys) {
@@ -95,9 +112,9 @@ async function fetchArticles(): Promise<Article[]> {
       return { id, source, originalLanguage: "he", originalText, translatedText, url, publishedAt };
     };
 
-    return list
-      .map(toArticle)
-      .filter((x): x is Article => x !== null);
+    const items = list.map(toArticle).filter((x): x is Article => x !== null);
+    const nextCursor = extractNextCursor(payload);
+    return { items, nextCursor };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new Error(`Network error: ${msg}`);
@@ -105,10 +122,41 @@ async function fetchArticles(): Promise<Article[]> {
 }
 
 export default function NewsFeed() {
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    refetch,
+    isFetching,
+  } = useInfiniteQuery<Page, Error>({
     queryKey: ["articles", { lang: "he" }],
-    queryFn: fetchArticles,
+    queryFn: ({ pageParam }) => fetchPage(pageParam as string | undefined),
+    getNextPageParam: (lastPage: Page) => lastPage.nextCursor ?? undefined,
+    initialPageParam: undefined,
   });
+
+  const flatItems = useMemo(() => {
+    const pages = (data?.pages as Page[]) ?? [];
+    return pages.flatMap((p) => p.items);
+  }, [data]);
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    const el = sentinelRef.current;
+    const observer = new IntersectionObserver((entries) => {
+      const first = entries[0];
+      if (first.isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage().catch(() => {});
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isLoading) return <div className="text-sm text-gray-500">Loading…</div>;
   if (isError)
@@ -131,7 +179,7 @@ export default function NewsFeed() {
         </button>
       </div>
       <ul className="space-y-4">
-        {(data ?? []).map((a) => (
+        {flatItems.map((a) => (
           <li key={a.id} className="p-4 rounded border border-gray-200 bg-white">
             <div className="flex items-center justify-between gap-3">
               <div className="text-xs text-gray-500">
@@ -157,6 +205,21 @@ export default function NewsFeed() {
           </li>
         ))}
       </ul>
+      <div ref={sentinelRef} className="h-10" />
+      <div className="mt-4 flex items-center justify-center">
+        {isFetchingNextPage ? (
+          <span className="text-sm text-gray-500">Loading more…</span>
+        ) : hasNextPage ? (
+          <button
+            className="text-sm px-3 py-1 rounded border border-gray-300 hover:bg-gray-50"
+            onClick={() => fetchNextPage()}
+          >
+            Load more
+          </button>
+        ) : (
+          <span className="text-xs text-gray-400">No more items</span>
+        )}
+      </div>
     </div>
   );
 }
