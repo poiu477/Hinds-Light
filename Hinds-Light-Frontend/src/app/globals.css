@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Use class-based dark mode (responds to .dark on <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -19,6 +22,27 @@
   --destructive-foreground: #ffffff;
   --ring: #2563eb;
   --radius: 0.5rem;
+}
+
+/* When <html class="dark"> is present, mirror dark variables */
+:root.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --card: #111827;
+  --card-foreground: #f9fafb;
+  --border: #374151;
+  --input: #111827;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #1f2937;
+  --secondary-foreground: #f9fafb;
+  --muted: #1f2937;
+  --muted-foreground: #9ca3af;
+  --accent: #1f2937;
+  --accent-foreground: #f9fafb;
+  --destructive: #f87171;
+  --destructive-foreground: #ffffff;
+  --ring: #3b82f6;
 }
 
 @theme inline {

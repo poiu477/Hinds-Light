@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import ThemeToggle from "@/components/ThemeToggle";
 import Navigation from "./Navigation";
 
 interface HeaderProps {
@@ -56,6 +57,7 @@ export default function Header({ onRefresh, isRefreshing }: HeaderProps) {
               {isRefreshing ? "Refreshing..." : "Refresh"}
             </button>
           )}
+          <ThemeToggle />
         </div>
       </div>
     </header>
