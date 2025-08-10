@@ -68,7 +68,8 @@ model ContentItem {
   flagNote           String?
   flaggedAt          DateTime?
   sentiment          String?
-  tags               String[]          @default([])
+  tags               String[]          @default([])  // Original Hebrew categories from RSS
+  translatedTags     String[]          @default([])  // English translations of categories
   keywords           String[]          @default([])
   // Author (mostly for social; null for RSS)
   authorUsername       String?

@@ -14,6 +14,9 @@ services:
       GOOGLE_TRANSLATE_API_KEY: ${GOOGLE_TRANSLATE_API_KEY}
     ports:
       - "4000:4000"
+    networks:
+      - default
+      - hinds-light-shared
     restart: unless-stopped
     depends_on:
       postgres:
@@ -31,6 +34,8 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hinds_light?schema=public
       REDIS_URL: redis://redis:6379
       FEED_USER_AGENT: ${FEED_USER_AGENT}
+      TRANSLATION_PROVIDER: ${TRANSLATION_PROVIDER:-dummy}
+      GOOGLE_TRANSLATE_API_KEY: ${GOOGLE_TRANSLATE_API_KEY}
     restart: unless-stopped
     depends_on:
       postgres:
@@ -80,6 +85,10 @@ services:
 volumes:
   pgdata:
   redisdata:
+
+networks:
+  hinds-light-shared:
+    external: true
 
 
 

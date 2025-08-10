@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma.js';
 import Parser from 'rss-parser';
 import { enqueueTranslation } from '../queues/translationQueue.js';
 import { fetchFeedXml, politeDelay, warmUpOrigin, sanitizeXml } from '../lib/fetchFeed.js';
+import { translateCategories } from '../utils/translateCategories.js';
 // Avoid importing enums that may not be exported by Prisma types in this setup
 
 type JobData = { sourceId?: string };
@@ -66,6 +67,41 @@ async function ingestRssSource(sourceId: string, feedUrl: string) {
       .toString()
       .trim();
     if (!originalText) continue;
+    
+    // Extract categories from RSS entry
+    const categories: string[] = [];
+    if ((entry as any).categories) {
+      const entryCategories = (entry as any).categories;
+      if (Array.isArray(entryCategories)) {
+        for (const cat of entryCategories) {
+          if (typeof cat === 'string' && cat.trim()) {
+            categories.push(cat.trim());
+          } else if (cat && typeof cat === 'object' && cat.name && typeof cat.name === 'string') {
+            categories.push(cat.name.trim());
+          } else if (cat && typeof cat === 'object' && cat._ && typeof cat._ === 'string') {
+            categories.push(cat._.trim());
+          }
+        }
+      }
+    }
+    // Also check for category field (singular)
+    if ((entry as any).category && typeof (entry as any).category === 'string') {
+      categories.push((entry as any).category.trim());
+    }
+    
+    // Translate categories from Hebrew to English
+    let translatedCategories: string[] = [];
+    if (categories.length > 0) {
+      try {
+        console.log(`[ingest] Translating ${categories.length} categories for ${url}:`, categories);
+        translatedCategories = await translateCategories(categories);
+        console.log(`[ingest] Translated categories:`, translatedCategories);
+      } catch (error) {
+        console.error(`[ingest] Failed to translate categories for ${url}:`, error);
+        translatedCategories = []; // Continue with empty translated categories on error
+      }
+    }
+    
     let publishedAt: Date | null = null;
     if ((entry as any).isoDate) {
       publishedAt = new Date((entry as any).isoDate);
@@ -87,9 +123,14 @@ async function ingestRssSource(sourceId: string, feedUrl: string) {
             originalText,
             translationStatus: 'PENDING',
             publishedAt: publishedAt ?? undefined,
+            tags: categories,
+            translatedTags: translatedCategories,
             rawJson: entry as any
           },
-          update: {}
+          update: {
+            tags: categories,
+            translatedTags: translatedCategories
+          }
         });
       } else {
         // Fallback dedup when URL is missing: hash based on source + title + date + text length
@@ -107,9 +148,14 @@ async function ingestRssSource(sourceId: string, feedUrl: string) {
             originalText,
             translationStatus: 'PENDING',
             publishedAt: publishedAt ?? undefined,
+            tags: categories,
+            translatedTags: translatedCategories,
             rawJson: entry as any
           },
-          update: {}
+          update: {
+            tags: categories,
+            translatedTags: translatedCategories
+          }
         });
       }
       await enqueueTranslation(item.id, 'en');

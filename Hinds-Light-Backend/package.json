@@ -15,7 +15,8 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate dev --name init",
-    "seed:sources": "tsx src/scripts/seedSources.ts"
+    "seed:sources": "tsx src/scripts/seedSources.ts",
+    "reingest:sources": "tsx src/scripts/reingestSources.ts"
   },
   "devDependencies": {
     "@types/node": "^24.2.1",

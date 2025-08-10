@@ -161,27 +161,38 @@ export interface UpdateTranslationRequest {
   verified: boolean;
 }
 
+export type SourceType = 'RSS' | 'X' | 'TELEGRAM' | 'YOUTUBE' | 'WEBSITE';
+
 export interface Source {
   id: string;
-  platform: "x" | "news" | "court" | "political";
+  type: SourceType;
   name: string;
-  url: string;
-  keywords: string[];
-  hashtags: string[];
+  url?: string;
+  displayName?: string;
+  alignment?: string; // Manual alignment field (legacy)
+  language: string;
   active: boolean;
-  lastCollected: Date;
-  postsCount: number;
+  createdAt: string;
+  updatedAt: string;
+  categories?: string[]; // RSS feed categories extracted from content
+  _count?: {
+    items: number;
+  };
 }
 
 export type GetSourcesResponse = APIResponse<Source[]>;
 
 export interface CreateSourceRequest {
-  platform: Source["platform"];
+  type: SourceType;
   name: string;
   url: string;
-  keywords: string[];
-  hashtags?: string[];
+  displayName?: string;
+  alignment?: string;
+  language?: string;
+  active?: boolean;
 }
+
+export type GetCategoriesResponse = APIResponse<string[]>;
 
 export type ToggleSourceResponse = APIResponse<{ active: boolean }>;
 

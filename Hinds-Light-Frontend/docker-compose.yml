@@ -7,10 +7,10 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # Public URL used by the browser for API calls
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://host.docker.internal:4000}
+      # Public URL used by the browser for API calls - use proxy route
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
       # Internal server-side proxy base URL
-      API_URL: ${API_URL:-http://host.docker.internal:4000}
+      API_URL: ${API_URL:-http://hinds-light-backend-api-1:4000}
       NODE_ENV: development
       PORT: "3000"
     volumes:
@@ -20,6 +20,13 @@ services:
       # Exclude node_modules to avoid conflicts
       - /app/node_modules
       - /app/Hinds-Light-Frontend/node_modules
+    networks:
+      - default
+      - hinds-light-shared
     restart: unless-stopped
+
+networks:
+  hinds-light-shared:
+    external: true
 
 

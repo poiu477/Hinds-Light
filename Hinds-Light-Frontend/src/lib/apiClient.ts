@@ -26,8 +26,23 @@ export class APIClient {
 
   async get<T>(endpoint: string, params?: object): Promise<T> {
     const url = this.composeUrl(endpoint, params);
-    const response = await fetch(url, { headers: this.getHeaders() });
-    return this.handleResponse<T>(response);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+    
+    try {
+      const response = await fetch(url, { 
+        headers: this.getHeaders(),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      return this.handleResponse<T>(response);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new APIError('Request timeout - server may be starting up, please try again', 408);
+      }
+      throw error;
+    }
   }
 
   async post<T>(endpoint: string, data?: unknown): Promise<T> {
@@ -59,7 +74,12 @@ export class APIClient {
   private composeUrl(endpoint: string, params?: object): string {
     const base = this.baseURL.endsWith("/") ? this.baseURL.slice(0, -1) : this.baseURL;
     const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-    const url = new URL(`${base}${path}`, typeof window === "undefined" ? "http://localhost" : undefined);
+    const fullPath = `${base}${path}`;
+    
+    // For relative URLs in the browser, use the current origin as base
+    const baseUrl = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+    const url = new URL(fullPath, baseUrl);
+    
     if (params) {
       for (const [key, value] of Object.entries(params as Record<string, unknown>)) {
         if (value === undefined || value === null) continue;
@@ -74,7 +94,11 @@ export class APIClient {
         url.searchParams.set(key, String(value));
       }
     }
-    return url.toString().replace(/^http:\/\/localhost\//, "/");
+    
+    // For browser requests, return the relative path
+    return typeof window === "undefined" 
+      ? url.toString().replace(/^http:\/\/localhost/, "")
+      : url.pathname + url.search;
   }
 
   private getHeaders(): HeadersInit {
