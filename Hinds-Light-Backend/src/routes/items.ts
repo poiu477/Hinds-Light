@@ -7,6 +7,8 @@ const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   before: z.string().optional(),
   sourceId: z.string().optional(),
+  sourceIds: z.string().optional().transform(val => val ? val.split(',') : undefined),
+  tags: z.string().optional().transform(val => val ? val.split(',') : undefined),
   lang: z.enum(['en', 'he']).default('en')
 });
 
@@ -14,7 +16,28 @@ export async function registerItemsRoutes(app: FastifyInstance) {
   app.get('/api/v1/items', async (req) => {
     const parsed = listQuerySchema.parse(req.query);
     const where: Record<string, unknown> = {};
-    if (parsed.sourceId) where.sourceId = parsed.sourceId;
+    
+    // Build OR conditions for flexible filtering
+    const orConditions: Array<Record<string, unknown>> = [];
+    
+    // Handle source filtering - support both single sourceId and multiple sourceIds
+    if (parsed.sourceIds && parsed.sourceIds.length > 0) {
+      orConditions.push({ sourceId: { in: parsed.sourceIds } });
+    } else if (parsed.sourceId) {
+      orConditions.push({ sourceId: parsed.sourceId });
+    }
+    
+    // Handle tag filtering using translatedTags for English display
+    if (parsed.tags && parsed.tags.length > 0) {
+      orConditions.push({ translatedTags: { hasSome: parsed.tags } });
+    }
+    
+    // Apply OR logic if multiple filter types are selected, otherwise use direct conditions
+    if (orConditions.length > 1) {
+      where.OR = orConditions;
+    } else if (orConditions.length === 1) {
+      Object.assign(where, orConditions[0]);
+    }
 
     const take = parsed.limit;
     const cursor = parsed.before ? { id: parsed.before } : undefined;
@@ -31,6 +54,8 @@ export async function registerItemsRoutes(app: FastifyInstance) {
       translatedLanguage: string | null;
       translatedText: string | null;
       translationStatus: string;
+      tags: string[];
+      translatedTags: string[];
     };
 
     const items: ItemRow[] = await prisma.contentItem.findMany({
@@ -49,7 +74,9 @@ export async function registerItemsRoutes(app: FastifyInstance) {
         originalText: true,
         translatedLanguage: true,
         translatedText: true,
-        translationStatus: true
+        translationStatus: true,
+        tags: true,
+        translatedTags: true
       }
     });
 
@@ -68,7 +95,10 @@ export async function registerItemsRoutes(app: FastifyInstance) {
       originalText: i.originalText,
       translatedLanguage: i.translatedLanguage ?? null,
       translatedText: i.translatedText ?? null,
-      translationStatus: i.translationStatus
+      translationStatus: i.translationStatus,
+      // Include tags for filtering and display
+      tags: i.tags,
+      translatedTags: i.translatedTags
     }));
 
     return ok({

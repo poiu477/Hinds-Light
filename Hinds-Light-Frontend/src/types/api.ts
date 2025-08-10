@@ -266,4 +266,39 @@ export interface RateLimitHeaders {
   "X-RateLimit-Reset": string;
 }
 
+export interface NewsItem {
+  id: string;
+  sourceId: string;
+  type: string;
+  title: string | null;
+  url: string | null;
+  publishedAt: string | null;
+  language: string;
+  text: string;
+  originalLanguage: string;
+  originalText: string;
+  translatedLanguage: string | null;
+  translatedText: string | null;
+  translationStatus: string;
+  tags: string[];
+  translatedTags: string[];
+}
+
+export interface GetItemsResponse {
+  success: boolean;
+  data: {
+    items: NewsItem[];
+    nextCursor: string | null;
+  };
+}
+
+export interface GetItemsParams {
+  limit?: number;
+  before?: string;
+  sourceId?: string;
+  sourceIds?: string[];
+  tags?: string[];
+  lang?: 'en' | 'he';
+}
+
 

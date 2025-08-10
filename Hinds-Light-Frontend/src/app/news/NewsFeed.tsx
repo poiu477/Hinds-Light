@@ -1,131 +1,35 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import React, { useEffect, useRef } from "react";
+import Link from "next/link";
 import Header from "@/components/Header";
 import ArticleCard from "@/components/ArticleCard";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ErrorState from "@/components/ErrorState";
+import { useFilteredItems } from "@/features/items/hooks";
+import { useFilterStore } from "@/stores/useFilterStore";
+import { useSources } from "@/features/sources/hooks";
+import type { NewsItem } from "@/types/api";
 
-type Article = {
-  id: string;
-  source: string;
-  originalLanguage: string;
-  originalText: string;
-  translatedText: string;
-  url?: string;
-  publishedAt?: string;
-};
+// Article type is now handled by NewsItem from @/types/api
 
-type Page = { items: Article[]; nextCursor: string | null };
-
-async function fetchPage(cursor?: string): Promise<Page> {
-  try {
-    const params = new URLSearchParams({ lang: "he", limit: "50" });
-    if (cursor) params.set("before", cursor);
-    const res = await fetch(`/api/v2/items?${params.toString()}`);
-    if (!res.ok) {
-      let message = `Failed to load items (status ${res.status})`;
-      try {
-        const data = (await res.json()) as unknown;
-        if (
-          data &&
-          typeof data === 'object' &&
-          'error' in (data as Record<string, unknown>) &&
-          typeof (data as Record<string, unknown>).error === 'string'
-        ) {
-          message = (data as Record<string, string>).error;
-        }
-      } catch {
-        // ignore
-      }
-      throw new Error(message);
-    }
-    const payload = (await res.json()) as unknown;
-
-    const extractItems = (value: unknown): unknown[] => {
-      if (Array.isArray(value)) return value;
-      if (value && typeof value === "object") {
-        const obj = value as Record<string, unknown>;
-        // APIResponse shape: { success, data }
-        if ("data" in obj) {
-          const data = obj["data"];
-          if (Array.isArray(data)) return data;
-          if (data && typeof data === "object" && Array.isArray((data as Record<string, unknown>)["items"])) {
-            return (data as Record<string, unknown>)["items"] as unknown[];
-          }
-        }
-        // Fallback to top-level items
-        if (Array.isArray(obj["items"])) return obj["items"] as unknown[];
-      }
-      return [];
-    };
-
-    const list: unknown[] = extractItems(payload);
-    const extractNextCursor = (value: unknown): string | null => {
-      if (value && typeof value === "object") {
-        const obj = value as Record<string, unknown>;
-        if ("data" in obj && obj.data && typeof obj.data === "object") {
-          const d = obj.data as Record<string, unknown>;
-          const nc = d["nextCursor"];
-          if (typeof nc === "string" && nc.trim().length > 0) return nc;
-          if (nc === null) return null;
-        }
-        const ncTop = obj["nextCursor"];
-        if (typeof ncTop === "string" && ncTop.trim().length > 0) return ncTop;
-        if (ncTop === null) return null;
-      }
-      return null;
-    };
-
-    const toStr = (obj: Record<string, unknown>, keys: string[]): string => {
-      for (const k of keys) {
-        const v = obj[k];
-        if (typeof v === "string" && v.trim().length > 0) return v;
-      }
-      return "";
-    };
-
-    const toArticle = (raw: unknown): Article | null => {
-      if (!raw || typeof raw !== "object") return null;
-      const o = raw as Record<string, unknown>;
-      const id = toStr(o, ["id", "uuid", "item_id"]);
-      const source = toStr(o, ["source", "source_name", "origin", "platform"]);
-      const originalText =
-        toStr(o, [
-          "originalText",
-          "original_text",
-          "text_he",
-          "original",
-          "text",
-          "content",
-        ]) || "";
-      const translatedText =
-        toStr(o, [
-          "translatedText",
-          "translated_text",
-          "text_en",
-          "translation",
-          "english",
-        ]) || originalText;
-      const url = toStr(o, ["url", "link", "permalink"]);
-      const publishedAt =
-        toStr(o, ["publishedAt", "published_at", "created_at", "timestamp"]) || undefined;
-
-      if (!id) return null;
-      return { id, source, originalLanguage: "he", originalText, translatedText, url, publishedAt };
-    };
-
-    const items = list.map(toArticle).filter((x): x is Article => x !== null);
-    const nextCursor = extractNextCursor(payload);
-    return { items, nextCursor };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(`Network error: ${msg}`);
-  }
-}
+// Note: The article fetching is now handled by useFilteredItems hook via React Query
 
 export default function NewsFeed() {
+  // Get filter state
+  const {
+    selectedSources,
+    selectedTags,
+    hasActiveFilters,
+    getFilterSummary,
+    clearAllFilters,
+  } = useFilterStore();
+
+  // Get sources data for mapping
+  const { data: sourcesData } = useSources({ active: true });
+  const sources = sourcesData || [];
+
+  // Use React Query hooks
   const {
     data,
     isLoading,
@@ -135,18 +39,34 @@ export default function NewsFeed() {
     hasNextPage,
     isFetchingNextPage,
     refetch,
-    isFetching,
-  } = useInfiniteQuery<Page, Error>({
-    queryKey: ["articles", { lang: "he" }],
-    queryFn: ({ pageParam }) => fetchPage(pageParam as string | undefined),
-    getNextPageParam: (lastPage: Page) => lastPage.nextCursor ?? undefined,
-    initialPageParam: undefined,
-  });
+    isRefetching,
+  } = useFilteredItems(selectedSources, selectedTags, 'en');
 
-  const flatItems = useMemo(() => {
-    const pages = (data?.pages as Page[]) ?? [];
-    return pages.flatMap((p) => p.items);
-  }, [data]);
+  // Access items from the hook result and enhance with source info
+  const newsItems: NewsItem[] = data?.items || [];
+  
+
+  
+  // Helper function to extract domain from URL
+  const extractDomain = (url: string): string => {
+    try {
+      const domain = new URL(url).hostname;
+      return domain.replace('www.', '');
+    } catch {
+      return '';
+    }
+  };
+
+  // Helper function to get source info
+  const getSourceInfo = (sourceId: string) => {
+    const source = sources.find(s => s.id === sourceId);
+    console.log('Looking for source:', { sourceId, found: !!source, totalSources: sources.length });
+    return {
+      name: source?.displayName || source?.name || 'Unknown Source',
+      domain: source?.url ? extractDomain(source.url) : '',
+      url: source?.url
+    };
+  };
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -165,7 +85,7 @@ export default function NewsFeed() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <Header />
+        <Header onRefresh={() => refetch()} isRefreshing={isRefetching} />
         <div className="container mx-auto px-6 py-8">
           <LoadingSpinner size="lg" text="Loading latest news..." />
         </div>
@@ -176,12 +96,13 @@ export default function NewsFeed() {
   if (isError) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-        <Header onRefresh={() => refetch()} isRefreshing={isFetching} />
+        <Header onRefresh={() => refetch()} isRefreshing={isRefetching} />
         <div className="container mx-auto px-6 py-8">
           <ErrorState 
             message={(error as Error)?.message ?? "Error loading articles"}
             onRetry={() => refetch()}
           />
+
         </div>
       </div>
     );
@@ -189,26 +110,100 @@ export default function NewsFeed() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Header onRefresh={() => refetch()} isRefreshing={isFetching} />
+      <Header onRefresh={() => refetch()} isRefreshing={isRefetching} />
       
       <main className="container mx-auto px-6 py-8">
         <div className="max-w-4xl mx-auto">
+          {/* Active Filters Banner */}
+          {hasActiveFilters() && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <svg className="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                      Filtered Feed
+                    </p>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      {getFilterSummary()}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Link
+                    href="/sources"
+                    className="inline-flex items-center px-3 py-2 border border-blue-300 dark:border-blue-600 text-sm font-medium rounded-md text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200 dark:hover:bg-blue-900/60 transition-colors"
+                  >
+                    <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                    </svg>
+                    Manage Filters
+                  </Link>
+                  <button
+                    onClick={clearAllFilters}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Clear Filters
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Articles Grid */}
-          {flatItems.length === 0 ? (
+          {newsItems.length === 0 ? (
             <div className="text-center py-12">
               <div className="mx-auto h-12 w-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
                 <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No articles found</h3>
-              <p className="text-gray-600 dark:text-gray-400">Check back later for new content.</p>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                {hasActiveFilters() ? "No articles match your filters" : "No articles found"}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                {hasActiveFilters() 
+                  ? "Try adjusting your source and category filters to see more content."
+                  : "Check back later for new content."
+                }
+              </p>
+              {hasActiveFilters() && (
+                <button
+                  onClick={clearAllFilters}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Clear All Filters
+                </button>
+              )}
+
             </div>
           ) : (
             <div className="grid gap-6">
-              {flatItems.map((article) => (
-                <ArticleCard key={article.id} article={article} />
-              ))}
+              {newsItems.map((item: NewsItem) => {
+                const sourceInfo = getSourceInfo(item.sourceId);
+                return (
+                  <ArticleCard 
+                    key={item.id} 
+                    article={{
+                      id: item.id,
+                      source: sourceInfo.name,
+                      sourceDomain: sourceInfo.domain,
+                      originalLanguage: item.originalLanguage,
+                      originalText: item.originalText,
+                      translatedText: item.text,
+                      url: item.url || undefined,
+                      publishedAt: item.publishedAt || undefined,
+                      title: item.title || undefined,
+                      tags: item.translatedTags || []
+                    }} 
+                  />
+                );
+              })}
             </div>
           )}
 
@@ -226,7 +221,7 @@ export default function NewsFeed() {
               >
                 Load More Articles
               </button>
-            ) : flatItems.length > 0 ? (
+            ) : newsItems.length > 0 ? (
               <div className="text-center">
                 <div className="inline-flex items-center px-4 py-2 text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-lg">
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
