@@ -18,6 +18,7 @@ export async function enqueueTranslation(
     'translate',
     { contentItemId, targetLanguage },
     {
+      jobId: `translate:${contentItemId}:${targetLanguage}`,
       removeOnComplete: 1000,
       removeOnFail: 1000,
       attempts: 3,

@@ -158,7 +158,10 @@ async function ingestRssSource(sourceId: string, feedUrl: string) {
           }
         });
       }
-      await enqueueTranslation(item.id, 'en');
+      // Only enqueue translation if not already translated
+      if ((item as any).translationStatus !== 'TRANSLATED' || !(item as any).translatedText) {
+        await enqueueTranslation(item.id, 'en');
+      }
     } catch (e: any) {
       console.error('[ingest] Error saving content item', e?.message || e);
     }
